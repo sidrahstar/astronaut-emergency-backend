@@ -8,7 +8,7 @@ app = FastAPI()
 
 # This describes what data we expect to receive from the app
 class EmergencyInput(BaseModel):
-    text: str
+    emergencyInput: str
 
 
 @app.get("/")
@@ -20,7 +20,7 @@ def home():
 def analyze_emergency(input: EmergencyInput):
 
     # STEP A: Ask the classifier which emergency this is
-    emergency_id = classify_emergency(input.text)
+    emergency_id = classify_emergency(input.emergencyInput)
 
     # If the emergency was not recognized
     if emergency_id == "UNKNOWN":
