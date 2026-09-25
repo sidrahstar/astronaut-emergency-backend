@@ -1,28 +1,30 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
+import sqlite3
 
 app = FastAPI()
 
-# This describes what data we expect to receive from the app
-class EmergencyInput(BaseModel):
-    text: str
+@app.get("/emergency/{emergency_id}")
+def get_emergency(emergency_id: str):
 
-@app.get("/")
-def home():
-    return {"message": "Backend is running!"}
+    conn = sqlite3.connect("emergencies.db")
+    cursor = conn.cursor()
 
-@app.post("/analyze")
-def analyze_emergency(input: EmergencyInput):
-    astronaut_text = input.text
+    cursor.execute(
+        "SELECT * FROM emergencies WHERE emergency_id = ?",
+        (emergency_id,)
+    )
 
-    emergency_id = "E001"
+    row = cursor.fetchone()
+    conn.close()
 
-    result = {
-        "emergency_id": emergency_id,
-        "emergency_name": "Cabin Pressure",
-        "priority": "Critical",
-        "procedure": "placeholder procedure text",
-        "checklist": ["Step 1", "Step 2", "Step 3", "Step 4"]
+    if row is None:
+        return {"error": "Emergency not found"}
+
+    return {
+        "emergency_id": row[0],
+        "name": row[1],
+        "priority": row[2],
+        "keywords": row[3],
+        "procedure": row[4],
+        "checklist": row[5]
     }
-
-    return result
