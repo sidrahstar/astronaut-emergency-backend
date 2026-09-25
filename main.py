@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from classifier import classify_emergency
+from classify_emergency import classify_emergency
 
 app = FastAPI()
 
