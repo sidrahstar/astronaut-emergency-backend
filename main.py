@@ -60,3 +60,32 @@ def analyze_emergency(input: EmergencyInput):
         "procedure": result[3],
         "checklist": result[4]
     }
+
+
+# STEP 10 - Incident Log
+
+class IncidentInput(BaseModel):
+    emergency_id: str
+    time: str
+    status: str
+    completed_steps: list
+
+
+@app.post("/incident")
+def log_incident(input: IncidentInput):
+    # For now, just confirm it was received
+    # Later this can save to a file or database
+    return {
+        "message": "Incident logged",
+        "data": input
+    }
+
+
+# Mission Control Update
+
+@app.post("/mission-control/update")
+def mission_control_update():
+    return {
+        "message": "Emergency Update",
+        "details": "Emergency procedure initiated. Current status: Monitoring."
+    }
