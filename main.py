@@ -1,36 +1,42 @@
 from fastapi import FastAPI
-import sqlite3
+from pydantic import BaseModel
+from classifier import
+classify_emergency
 
 app = FastAPI()
 
-@app.get("/emergency/{emergency_id}")
-def get_emergency(emergency_id: str):
 
-    try:
-        conn = sqlite3.connect("emergencies.db")
-        cursor = conn.cursor()
+# This describes what data we expect to receive from the app
+class EmergencyInput(BaseModel):
+    text: str
 
-        cursor.execute(
-            "SELECT * FROM emergencies WHERE emergency_id = ?",
-            (emergency_id,)
-        )
 
-        row = cursor.fetchone()
-        conn.close()
+@app.get("/")
+def home():
+    return {"message": "Backend is running!"}
 
-        if row is None:
-            return {"error": "Emergency not found"}
 
-        return {
-            "emergency_id": row[0],
-            "name": row[1],
-            "priority": row[2],
-            "keywords": row[3],
-            "procedure": row[4],
-            "checklist": row[5]
-        }
+@app.post("/analyze")
+def analyze_emergency(input: EmergencyInput):
+    astronaut_text = input.text
 
-    except Exception as e:
-        return {
-            "error": str(e)
-        }
+    # STEP A: Ask P4's classifier which emergency this is
+    # (we'll connect this properly once P4 shares their code)
+    emergency_id = classify_emergency(astronaut_text)  # placeholder for now
+
+    # STEP B: Ask P5/P1's database for the full details
+    # (we'll connect this properly once P1/P5 share their code)
+    result = {
+        "emergency_id": emergency_id,
+        "emergency_name": "Cabin Pressure",
+        "priority": "Critical",
+        "procedure": "placeholder procedure text",
+        "checklist": [
+            "Step 1",
+            "Step 2",
+            "Step 3",
+            "Step 4"
+        ]
+    }
+
+    return result
