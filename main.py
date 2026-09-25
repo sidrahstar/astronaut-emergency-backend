@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from classify_emergency import classify_emergency
+import sqlite3
 
 app = FastAPI()
 
@@ -17,23 +18,45 @@ def home():
 
 @app.post("/analyze")
 def analyze_emergency(input: EmergencyInput):
-    astronaut_text = input.text
 
-    # STEP A: Ask P4's classifier which emergency this is
-    emergency_id = classify_emergency(astronaut_text)
+    # STEP A: Ask the classifier which emergency this is
+    emergency_id = classify_emergency(input.text)
 
-    # STEP B: Ask P5/P1's database for the full details
-    result = {
-        "emergency_id": emergency_id,
-        "emergency_name": "Cabin Pressure",
-        "priority": "Critical",
-        "procedure": "placeholder procedure text",
-        "checklist": [
-            "Step 1",
-            "Step 2",
-            "Step 3",
-            "Step 4"
-        ]
+    # If the emergency was not recognized
+    if emergency_id == "UNKNOWN":
+        return {
+            "emergency_id": "UNKNOWN",
+            "message": "Emergency type could not be identified."
+        }
+
+    # STEP B: Connect to the emergency database
+    conn = sqlite3.connect("emergencies.db")
+    cursor = conn.cursor()
+
+    # STEP C: Find the emergency in the database
+    cursor.execute("""
+        SELECT emergency_id, name, priority, procedure, checklist
+        FROM emergencies
+        WHERE emergency_id = ?
+    """, (emergency_id,))
+
+    result = cursor.fetchone()
+
+    # Close the database
+    conn.close()
+
+    # If nothing was found
+    if result is None:
+        return {
+            "emergency_id": emergency_id,
+            "message": "Emergency was classified but not found in database."
+        }
+
+    # STEP D: Send database information back
+    return {
+        "emergency_id": result[0],
+        "emergency_name": result[1],
+        "priority": result[2],
+        "procedure": result[3],
+        "checklist": result[4]
     }
-
-    return result
