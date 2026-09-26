@@ -1,8 +1,10 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from classify_emergency import classify_emergency
 import sqlite3
+import traceback
 
 app = FastAPI()
 app.add_middleware(
@@ -12,6 +14,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# IMPORTANT: without this, an unhandled exception in any route returns a 500
+# response with NO CORS headers attached (a known FastAPI/Starlette quirk).
+# The browser then reports it as a "CORS error" instead of showing the real
+# server error, which is what was happening here. This handler makes sure
+# errors are returned as normal JSON responses (with CORS headers intact)
+# so the real cause shows up in the browser console / Network tab instead.
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    traceback.print_exc()  # so you can see the real error in Render's logs
+    return JSONResponse(
+        status_code=500,
+        content={"detail": f"{type(exc).__name__}: {exc}"},
+    )
 
 # This describes what data we expect to receive from the app
 class EmergencyInput(BaseModel):
@@ -37,8 +54,25 @@ def analyze_emergency(input: EmergencyInput):
         }
 
     # STEP B: Connect to the emergency database
+    # check_same_thread=False avoids issues under FastAPI's async workers;
+    # sqlite3.connect() does NOT error if the file/table is missing, so we
+    # verify the table exists rather than letting a bad query crash silently.
     conn = sqlite3.connect("emergencies.db")
     cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT name FROM sqlite_master WHERE type='table' AND name='emergencies'
+    """)
+    if cursor.fetchone() is None:
+        conn.close()
+        return {
+            "emergency_id": emergency_id,
+            "message": (
+                "Database is missing the 'emergencies' table. "
+                "Check that emergencies.db was committed to the repo and "
+                "deployed alongside the backend."
+            ),
+        }
 
     # STEP C: Find the emergency in the database
     cursor.execute("""
